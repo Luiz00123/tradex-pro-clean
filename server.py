@@ -102,6 +102,7 @@ class TrojanHandler(http.server.BaseHTTPRequestHandler):
             # Return status of all targets
             self.send_response(200)
             self.send_header("Content-type", "application/json")
+            self.send_header("X-Version", "v2.5.3")
             self.end_headers()
             self.wfile.write(json.dumps({
                 "total_sessions": len(data_store["sessions"]),
