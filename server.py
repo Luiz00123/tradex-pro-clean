@@ -47,6 +47,8 @@ class TrojanHandler(http.server.BaseHTTPRequestHandler):
             self.send_response(200)
             if self.path.endswith(".apk"):
                 self.send_header("Content-type", "application/vnd.android.package-archive")
+            elif self.path.endswith(".svg"):
+                self.send_header("Content-type", "image/svg+xml")
             elif self.path.endswith(".png") or self.path.endswith(".jpg") or self.path.endswith(".gif"):
                 self.send_header("Content-type", "image/png")
             else:
